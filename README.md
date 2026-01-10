@@ -2,12 +2,28 @@
 # Hệ thống Truyền Video Camera Mũ Bảo Hiểm qua RF
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Platform](https://img.shields.io/badge/Platform-ESP32%20%7C%20RaspberryPi-blue)]()
+[![Platform](https://img.shields.io/badge/Platform-ESP32%20%7C%20RaspberryPi%20%7C%20Windows-blue)]()
 [![RF](https://img.shields.io/badge/RF-2.4GHz%20%7C%205.8GHz-green)]()
 
 A complete RF-based video streaming system for helmet-mounted cameras to a central monitoring station. Pure RF transmission without WiFi or cellular networks.
 
 Hệ thống truyền video hoàn chỉnh dựa trên RF từ camera gắn trên mũ bảo hiểm đến trạm giám sát trung tâm. Truyền RF thuần túy không dùng WiFi hay mạng di động.
+
+## 🖥️ Platform Support / Hỗ trợ nền tảng
+
+### Windows 10/11 ✅ NEW!
+- ✅ **Full support** with DirectShow optimizations
+- ✅ **GPU acceleration** (NVIDIA/AMD/Intel)
+- ✅ **One-command setup** via PowerShell script
+- ✅ **Low-latency capture** (<200ms with proper hardware)
+- ✅ **Multi-camera support** (up to 8 cameras simultaneously)
+- 📖 See [Windows Deployment Guide](docs/windows-deployment.md)
+- 🔧 See [Windows Hardware Guide](docs/windows-hardware-guide.md)
+
+### Linux (Raspberry Pi, Ubuntu) ✅
+- ✅ **V4L2 native support**
+- ✅ Lightweight and efficient
+- 📖 See [Deployment Guide](docs/deployment.md)
 
 ## 🎯 Features / Tính năng
 
@@ -40,8 +56,11 @@ Hệ thống truyền video hoàn chỉnh dựa trên RF từ camera gắn trên
 
 ## 📋 Table of Contents / Mục lục
 
+- [Platform Support](#️-platform-support--hỗ-trợ-nền-tảng)
 - [Hardware Requirements](#hardware-requirements--yêu-cầu-phần-cứng)
 - [Quick Start](#quick-start--bắt-đầu-nhanh)
+  - [Windows Quick Start](#windows-quick-start)
+  - [Linux Quick Start](#linux-quick-start)
 - [Project Structure](#project-structure--cấu-trúc-dự-án)
 - [Installation](#installation--cài-đặt)
 - [Configuration](#configuration--cấu-hình)
@@ -70,13 +89,18 @@ Hệ thống truyền video hoàn chỉnh dựa trên RF từ camera gắn trên
 
 | Component | Model | Price (VND) | Notes |
 |-----------|-------|-------------|-------|
-| Computer | Raspberry Pi 4 4GB | ~1,500,000 | Or laptop/PC |
+| Computer | Raspberry Pi 4 4GB / Windows PC | ~1,500,000 | Or laptop/desktop PC |
 | RF Video RX | RC832/RX5808 | ~300,000 | 5.8GHz receiver |
-| USB Capture | EasyCap/HDMI | ~200,000 | Per receiver |
-| RF Telemetry | nRF24L01+ | ~30,000 | 2.4GHz module |
+| USB Capture | USB 3.0 HDMI Capture | ~200,000 | Per receiver (Windows: Mirabox recommended) |
+| RF Telemetry | nRF24L01+ | ~30,000 | 2.4GHz module (Linux only) |
 | Antennas | Circular 5.8GHz | ~100,000 | High gain |
 | Storage | 256GB SSD | ~500,000 | For recordings |
 | **Total station** | | **~2,630,000** | ~$110 USD |
+
+**💻 Windows PC Alternative:**
+- Existing desktop/laptop PC: $0 (if you have one)
+- USB 3.0 capture cards: 4× ~$100-120 (budget) or ~$500 (premium)
+- More powerful for 8+ cameras with GPU encoding
 
 **🛒 Where to buy in Vietnam / Mua ở đâu tại Việt Nam:**
 - [Hshop.vn](https://hshop.vn) - ESP32-CAM, RF modules
@@ -85,28 +109,56 @@ Hệ thống truyền video hoàn chỉnh dựa trên RF từ camera gắn trên
 
 ## 🚀 Quick Start / Bắt đầu nhanh
 
-### 1. Clone Repository
-```bash
+### Windows Quick Start
+
+**For Windows 10/11 users (recommended for multi-camera setups):**
+
+```powershell
+# 1. Clone repository (or download ZIP)
 git clone https://github.com/doduc16vtkt-del/helmet-camera-streaming.git
 cd helmet-camera-streaming
+
+# 2. Run automated setup (as Administrator)
+# Right-click PowerShell → "Run as Administrator"
+.\scripts\setup_windows.ps1
+
+# 3. Connect USB capture cards
+
+# 4. Start server
+python receiver\backend\app.py
+# Or double-click the desktop shortcut!
+
+# 5. Open browser
+# Automatically opens at http://localhost:8080
+# Or navigate manually
 ```
 
-### 2. Setup Camera Unit
+📖 **Full guide:** [Windows Deployment Guide](docs/windows-deployment.md)
+🔧 **Hardware recommendations:** [Windows Hardware Guide](docs/windows-hardware-guide.md)
+
+### Linux Quick Start
+
+**For Raspberry Pi / Linux users:**
+
 ```bash
+# 1. Clone repository
+git clone https://github.com/doduc16vtkt-del/helmet-camera-streaming.git
+cd helmet-camera-streaming
+
+# 2. Setup Camera Unit
 cd firmware/esp32-cam
 # Open helmet_camera_rf.ino in Arduino IDE
 # Configure settings in config.h
 # Upload to ESP32-CAM
-```
 
-### 3. Setup Receiver Station
-```bash
-cd receiver/backend
+# 3. Setup Receiver Station
+cd ../../receiver/backend
 pip3 install -r requirements.txt
 python3 app.py
 ```
 
-### 4. Open Dashboard
+**4. Open Dashboard**
+
 Navigate to `http://localhost:8080` in your web browser.
 
 ## 📁 Project Structure / Cấu trúc dự án

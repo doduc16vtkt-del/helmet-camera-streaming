@@ -2,8 +2,8 @@
 Windows Camera Manager
 Quản lý Camera cho Windows
 
-Optimized multi-camera capture for Windows using DirectShow backend
-Chụp đa camera tối ưu cho Windows sử dụng DirectShow
+Optimized multi-camera capture for Windows using MSMF (Media Foundation) backend
+Chụp đa camera tối ưu cho Windows sử dụng MSMF (Media Foundation)
 
 Author: Helmet Camera RF System
 License: MIT
@@ -36,8 +36,8 @@ class CameraStats:
 
 class WindowsCamera:
     """
-    Single camera capture with DirectShow optimization
-    Chụp camera đơn với tối ưu DirectShow
+    Single camera capture with MSMF (Media Foundation) optimization
+    Chụp camera đơn với tối ưu MSMF (Media Foundation)
     """
     
     def __init__(self, device_id: int, config: dict):
@@ -67,7 +67,7 @@ class WindowsCamera:
         
     def start(self) -> bool:
         """
-        Start camera capture
+        Start camera capture with MSMF backend and proper initialization sequence
         
         Returns:
             bool: True if successful
@@ -77,45 +77,70 @@ class WindowsCamera:
             return True
         
         try:
-            # Open with DirectShow backend
-            self.cap = cv2.VideoCapture(self.device_id, cv2.CAP_DSHOW)
+            logger.info(f"Opening camera {self.device_id} with Media Foundation (MSMF)...")
+            
+            # Use MSMF backend (best for Windows 10/11)
+            self.cap = cv2.VideoCapture(self.device_id, cv2.CAP_MSMF)
             
             if not self.cap.isOpened():
                 logger.error(f"Failed to open camera {self.device_id}")
                 return False
             
-            # Configure camera settings
-            capture_config = self.config.get('capture', {})
+            logger.info(f"✅ Camera {self.device_id} opened with MSMF")
             
-            # Set resolution
-            resolution = capture_config.get('resolution', '640x480').split('x')
-            width, height = int(resolution[0]), int(resolution[1])
-            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
-            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+            # CRITICAL: Read initial frame BEFORE setting properties
+            # This initializes the camera's internal state
+            logger.info("Capturing initial frame to initialize camera...")
+            ret, test_frame = self.cap.read()
             
-            # Set FPS
-            fps = capture_config.get('fps', 30)
-            self.cap.set(cv2.CAP_PROP_FPS, fps)
+            if not ret:
+                logger.error("Failed to capture initial frame - camera may not support MSMF")
+                self.cap.release()
+                return False
             
-            # MJPEG format for better performance
-            if capture_config.get('format', 'MJPEG') == 'MJPEG':
-                self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+            logger.info(f"✅ Initial frame captured: {test_frame.shape}")
             
-            # Low-latency settings
-            buffer_size = capture_config.get('buffer_size', 1)
-            self.cap.set(cv2.CAP_PROP_BUFFERSIZE, buffer_size)
+            # Now safe to set properties (optional - camera may use defaults)
+            try:
+                capture_config = self.config.get('capture', {})
+                
+                # Set resolution
+                resolution = capture_config.get('resolution', '640x480').split('x')
+                width, height = int(resolution[0]), int(resolution[1])
+                self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+                self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+                
+                # Set FPS
+                fps = capture_config.get('fps', 30)
+                self.cap.set(cv2.CAP_PROP_FPS, fps)
+                
+                # Low-latency settings
+                buffer_size = capture_config.get('buffer_size', 1)
+                self.cap.set(cv2.CAP_PROP_BUFFERSIZE, buffer_size)
+                
+                # Try MJPEG format for better performance
+                if capture_config.get('format', 'MJPEG') == 'MJPEG':
+                    self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
+                
+                # Hardware acceleration
+                if capture_config.get('hardware_acceleration', True):
+                    try:
+                        if hasattr(cv2, 'VIDEO_ACCELERATION_ANY'):
+                            self.cap.set(cv2.CAP_PROP_HW_ACCELERATION, cv2.VIDEO_ACCELERATION_ANY)
+                            logger.info(f"Hardware acceleration enabled for camera {self.device_id}")
+                    except Exception as e:
+                        logger.debug(f"Hardware acceleration not available: {e}")
+                        
+            except Exception as e:
+                logger.warning(f"Could not set all properties: {e}")
+                logger.info("Continuing with camera default settings")
             
-            # Hardware acceleration
-            if capture_config.get('hardware_acceleration', True):
-                try:
-                    # Check if VIDEO_ACCELERATION_ANY is available (OpenCV 4.5.1+)
-                    if hasattr(cv2, 'VIDEO_ACCELERATION_ANY'):
-                        self.cap.set(cv2.CAP_PROP_HW_ACCELERATION, cv2.VIDEO_ACCELERATION_ANY)
-                        logger.info(f"Hardware acceleration enabled for camera {self.device_id}")
-                    else:
-                        logger.info(f"Hardware acceleration not available in this OpenCV version for camera {self.device_id}")
-                except Exception as e:
-                    logger.warning(f"Could not enable hardware acceleration: {e}")
+            # Get actual camera settings
+            actual_width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            actual_height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            actual_fps = self.cap.get(cv2.CAP_PROP_FPS)
+            
+            logger.info(f"Camera {self.device_id} actual settings: {actual_width}x{actual_height} @{actual_fps:.1f}fps")
             
             # Start capture thread
             self.running = True
@@ -123,11 +148,13 @@ class WindowsCamera:
             self.thread.start()
             
             self.stats.is_active = True
-            logger.info(f"Started camera {self.device_id} ({width}x{height} @ {fps}fps)")
+            logger.info(f"✅ Camera {self.device_id} started successfully")
             return True
             
         except Exception as e:
-            logger.error(f"Failed to start camera {self.device_id}: {e}")
+            logger.error(f"Error starting camera {self.device_id}: {e}")
+            if self.cap:
+                self.cap.release()
             return False
     
     def stop(self):
@@ -243,27 +270,34 @@ class WindowsMultiCameraManager:
     
     def discover_cameras(self) -> List[int]:
         """
-        Auto-discover available cameras
+        Auto-discover available cameras using MSMF backend
         
         Returns:
             List of available camera device IDs
         """
-        logger.info("Discovering cameras...")
+        logger.info("Discovering cameras with MSMF backend...")
         available_cameras = []
         
         # Try to open cameras 0-9
         for device_id in range(10):
             try:
-                cap = cv2.VideoCapture(device_id, cv2.CAP_DSHOW)
+                # Use MSMF for discovery
+                cap = cv2.VideoCapture(device_id, cv2.CAP_MSMF)
                 if cap.isOpened():
-                    available_cameras.append(device_id)
-                    # Get camera name if available
-                    try:
-                        backend_name = cap.getBackendName()
-                        logger.info(f"Found camera {device_id} (backend: {backend_name})")
-                    except:
-                        logger.info(f"Found camera {device_id}")
+                    # Test if can actually read frames
+                    ret, _ = cap.read()
+                    if ret:
+                        available_cameras.append(device_id)
+                        # Get camera name if available
+                        try:
+                            backend_name = cap.getBackendName()
+                            logger.info(f"Found camera {device_id} (backend: {backend_name})")
+                        except:
+                            logger.info(f"Found camera {device_id}")
                     cap.release()
+                else:
+                    # No more cameras
+                    break
             except Exception as e:
                 logger.debug(f"No camera at index {device_id}: {e}")
         

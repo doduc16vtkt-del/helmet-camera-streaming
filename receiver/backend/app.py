@@ -84,6 +84,10 @@ def get_default_config():
 config = load_config()
 
 # Initialize system components
+logger.info(f"Platform: {platform.system()}")
+if platform.system() == 'Windows':
+    logger.info("Using Media Foundation (MSMF) backend for cameras")
+
 rf_receiver = RFReceiver(config)
 video_capture = VideoCapture(config)
 channel_manager = ChannelManager(config)

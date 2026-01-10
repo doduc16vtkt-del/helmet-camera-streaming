@@ -45,26 +45,34 @@ class TestWindowsCamera(unittest.TestCase):
         self.assertIsNotNone(cv2.__version__)
         print(f"✓ OpenCV version: {cv2.__version__}")
     
+    def test_msmf_backend(self):
+        """Test MSMF (Media Foundation) backend availability"""
+        self.assertTrue(hasattr(self.cv2, 'CAP_MSMF'))
+        print(f"✓ MSMF backend available: CAP_MSMF = {self.cv2.CAP_MSMF}")
+    
     def test_directshow_backend(self):
-        """Test DirectShow backend availability"""
+        """Test DirectShow backend availability (legacy)"""
         self.assertTrue(hasattr(self.cv2, 'CAP_DSHOW'))
-        print(f"✓ DirectShow backend available: CAP_DSHOW = {self.cv2.CAP_DSHOW}")
+        print(f"✓ DirectShow backend available (legacy): CAP_DSHOW = {self.cv2.CAP_DSHOW}")
     
     def test_camera_discovery(self):
-        """Test camera discovery"""
-        print("\nDiscovering cameras...")
+        """Test camera discovery with MSMF backend"""
+        print("\nDiscovering cameras with MSMF backend...")
         
         found_cameras = []
         for device_id in range(5):  # Test first 5 indices
             try:
-                cap = self.cv2.VideoCapture(device_id, self.cv2.CAP_DSHOW)
+                cap = self.cv2.VideoCapture(device_id, self.cv2.CAP_MSMF)
                 if cap.isOpened():
-                    found_cameras.append(device_id)
-                    width = int(cap.get(self.cv2.CAP_PROP_FRAME_WIDTH))
-                    height = int(cap.get(self.cv2.CAP_PROP_FRAME_HEIGHT))
-                    fps = int(cap.get(self.cv2.CAP_PROP_FPS))
-                    backend = cap.getBackendName()
-                    print(f"  Camera {device_id}: {width}x{height} @ {fps}fps (backend: {backend})")
+                    # Test reading initial frame
+                    ret, _ = cap.read()
+                    if ret:
+                        found_cameras.append(device_id)
+                        width = int(cap.get(self.cv2.CAP_PROP_FRAME_WIDTH))
+                        height = int(cap.get(self.cv2.CAP_PROP_FRAME_HEIGHT))
+                        fps = int(cap.get(self.cv2.CAP_PROP_FPS))
+                        backend = cap.getBackendName()
+                        print(f"  Camera {device_id}: {width}x{height} @ {fps}fps (backend: {backend})")
                     cap.release()
             except Exception as e:
                 pass

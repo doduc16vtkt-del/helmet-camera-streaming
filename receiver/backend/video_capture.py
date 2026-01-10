@@ -71,9 +71,9 @@ class VideoCapture:
             
             # Open video capture device with platform-specific backend
             if platform.system() == 'Windows':
-                # Use DirectShow backend on Windows for better performance
-                cap = cv2.VideoCapture(device_path, cv2.CAP_DSHOW)
-                logger.info(f"Using DirectShow backend for device {device_path}")
+                # Use Media Foundation backend on Windows (best for Windows 10/11)
+                cap = cv2.VideoCapture(device_path, cv2.CAP_MSMF)
+                logger.info(f"Using Media Foundation (MSMF) backend for device {device_path}")
             else:
                 # Use default backend (V4L2 on Linux)
                 cap = cv2.VideoCapture(device_path)
@@ -82,30 +82,42 @@ class VideoCapture:
                 logger.error(f"Failed to open video device {device_path}")
                 return False
             
-            # Configure capture
-            capture_config = self.config.get('capture', {})
+            # CRITICAL FIX: Read initial frame BEFORE setting properties
+            # MSMF backend requires this to initialize camera's internal state
+            logger.info("Reading initial frame to initialize camera...")
+            ret, test_frame = cap.read()
             
-            # Set resolution
-            resolution = capture_config.get('resolution', '640x480').split('x')
-            width, height = int(resolution[0]), int(resolution[1])
-            cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
-            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+            if not ret:
+                logger.error("Failed to capture initial frame")
+                cap.release()
+                return False
             
-            # Set FPS
-            fps = capture_config.get('fps', 30)
-            cap.set(cv2.CAP_PROP_FPS, fps)
+            logger.info(f"✅ Initial frame captured: {test_frame.shape}")
             
-            # Set format if supported
-            fmt = capture_config.get('format', 'MJPEG')
-            if fmt == 'MJPEG':
-                cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
-            
-            # Windows-specific optimizations
-            if platform.system() == 'Windows':
-                # Minimal buffer for low latency
-                buffer_size = capture_config.get('buffer_size', 1)
-                cap.set(cv2.CAP_PROP_BUFFERSIZE, buffer_size)
-                logger.info(f"Set buffer size to {buffer_size} for low latency")
+            # Now try to set properties (camera may ignore them)
+            try:
+                capture_config = self.config.get('capture', {})
+                
+                # Set resolution
+                resolution = capture_config.get('resolution', '640x480').split('x')
+                width, height = int(resolution[0]), int(resolution[1])
+                cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+                cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+                
+                # Set FPS
+                fps = capture_config.get('fps', 30)
+                cap.set(cv2.CAP_PROP_FPS, fps)
+                
+                # Windows-specific optimizations
+                if platform.system() == 'Windows':
+                    # Minimal buffer for low latency
+                    buffer_size = capture_config.get('buffer_size', 1)
+                    cap.set(cv2.CAP_PROP_BUFFERSIZE, buffer_size)
+                
+                # Set format if supported
+                fmt = capture_config.get('format', 'MJPEG')
+                if fmt == 'MJPEG':
+                    cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
                 
                 # Try to enable hardware acceleration
                 if capture_config.get('hardware_acceleration', True):
@@ -114,10 +126,25 @@ class VideoCapture:
                         if hasattr(cv2, 'VIDEO_ACCELERATION_ANY'):
                             cap.set(cv2.CAP_PROP_HW_ACCELERATION, cv2.VIDEO_ACCELERATION_ANY)
                             logger.info("Hardware acceleration enabled")
-                        else:
-                            logger.info("Hardware acceleration not available in this OpenCV version")
                     except Exception as e:
-                        logger.warning(f"Could not enable hardware acceleration: {e}")
+                        logger.debug(f"Hardware acceleration not available: {e}")
+                        
+            except Exception as e:
+                logger.warning(f"Could not set all camera properties: {e}")
+                logger.info("Using camera default settings")
+            
+            # Verify camera works with final settings
+            ret, _ = cap.read()
+            if not ret:
+                logger.error("Camera opened but cannot read frames")
+                cap.release()
+                return False
+            
+            # Get actual settings
+            actual_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            actual_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            actual_fps = cap.get(cv2.CAP_PROP_FPS)
+            logger.info(f"Camera actual settings: {actual_width}x{actual_height} @{actual_fps}fps")
             
             self.captures[device_id] = cap
             self.frame_queues[device_id] = queue.Queue(maxsize=30)

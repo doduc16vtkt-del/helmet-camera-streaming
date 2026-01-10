@@ -36,7 +36,7 @@ rf_telemetry:
 
 # Video capture settings - Windows optimized
 capture:
-  backend: dshow          # DirectShow backend for Windows
+  backend: msmf           # Media Foundation backend (not dshow)
   device_type: integer    # Use integer device IDs (0, 1, 2...) instead of /dev/videoX
   resolution: "640x480"   # Capture resolution
   format: "MJPEG"         # MJPEG format for better performance
@@ -44,6 +44,7 @@ capture:
   buffer_size: 1          # Minimal buffer for low latency (<200ms target)
   
   # Windows-specific optimizations
+  # Note: Properties are set AFTER initial frame read to avoid MF_E_INVALIDMEDIATYPE error
   hardware_acceleration: true  # Enable GPU acceleration
   
   # Advanced settings

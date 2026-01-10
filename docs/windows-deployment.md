@@ -237,6 +237,35 @@ For best results on Windows:
 
 ### Testing Cameras
 
+**Method 1: MSMF Test Utility (Recommended)**
+
+Run the comprehensive MSMF test:
+
+```powershell
+cd scripts
+python test_camera_msmf.py
+```
+
+This will:
+- Test MSMF backend compatibility
+- Verify initialization sequence
+- Test camera properties
+- Compare backends (MSMF vs DirectShow)
+- Provide detailed diagnostics
+
+**Example output:**
+```
+✅ Camera 0 - MSMF: PASSED
+  Resolution: 640x480
+  FPS (reported): 30.0
+  FPS (measured): 29.8
+  Backend: MSMF
+
+✅ Your system is ready for production use!
+```
+
+**Method 2: Windows PowerShell Test**
+
 Run the camera test utility:
 
 ```powershell
@@ -254,12 +283,26 @@ This will:
 ✅ Camera 0 detected
    Resolution: 1920x1080
    FPS: 30
-   Backend: DSHOW
+   Backend: MSMF
 
 ✅ Camera 1 detected
    Resolution: 1280x720
    FPS: 60
-   Backend: DSHOW
+   Backend: MSMF
+```
+
+**Method 3: Quick Test in Python**
+
+```python
+import cv2
+
+# Test MSMF backend
+cap = cv2.VideoCapture(0, cv2.CAP_MSMF)
+if cap.isOpened():
+    ret, frame = cap.read()  # Read initial frame
+    if ret:
+        print(f"✅ Camera works! Frame: {frame.shape}")
+    cap.release()
 ```
 
 ---
@@ -454,30 +497,99 @@ capture:
    - Control Panel → Windows Defender Firewall
    - Turn off (testing only!)
 
-### DirectShow Errors
+### Camera Compatibility Issues
 
-**Problem:** "Failed to open video device" or DirectShow backend errors
+**Problem:** Camera fails to open or "MF_E_INVALIDMEDIATYPE" error on Windows 10/11
+
+**Root Cause:**
+- DirectShow backend doesn't work reliably on modern Windows 10/11
+- MSMF (Media Foundation) backend requires reading initial frame BEFORE setting camera properties
+- Some cameras don't support all requested formats/resolutions
 
 **Solutions:**
 
-1. **Update OpenCV:**
-```powershell
-pip install --upgrade opencv-python
+1. **Verify MSMF backend is configured (v2.0+):**
+
+Check `configs/receiver_config_windows.yaml`:
+```yaml
+capture:
+  backend: msmf  # Should be "msmf", NOT "dshow"
 ```
 
-2. **Install DirectShow filters:**
-   - Download K-Lite Codec Pack (Basic)
-   - From [codecguide.com](https://codecguide.com)
+2. **Test camera with MSMF utility:**
+```powershell
+cd scripts
+python test_camera_msmf.py
+```
 
-3. **Check camera format:**
-   - Some cameras only support YUYV, not MJPEG
-   - Edit config:
-   ```yaml
-   capture:
-     format: "YUYV"
-   ```
+This will:
+- Test MSMF backend compatibility
+- Test initialization sequence
+- Compare MSMF vs DirectShow performance
+- Provide diagnostics and recommendations
 
-4. **Reinstall Visual C++ Redistributables**
+3. **Understand MSMF vs DirectShow:**
+
+| Feature | MSMF (Recommended) | DirectShow (Legacy) |
+|---------|-------------------|-------------------|
+| Windows 10/11 Support | ✅ Excellent | ⚠️ Limited |
+| Initialization | Read frame first, then set properties | Set properties anytime |
+| Reliability | ✅ High | ❌ Low on modern Windows |
+| Error Code | MF_E_INVALIDMEDIATYPE if wrong order | Various DSHOW errors |
+
+4. **Why initialization order matters:**
+
+MSMF backend requires this sequence:
+```python
+# 1. Open camera
+cap = cv2.VideoCapture(0, cv2.CAP_MSMF)
+
+# 2. Read initial frame FIRST (critical!)
+ret, frame = cap.read()
+
+# 3. NOW set properties
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+```
+
+Setting properties before reading the initial frame causes error -1072873822 (MF_E_INVALIDMEDIATYPE).
+
+5. **Camera format compatibility:**
+
+If camera still fails, try different formats:
+```yaml
+capture:
+  format: "YUYV"  # Instead of MJPEG
+```
+
+Or let camera use defaults:
+```yaml
+capture:
+  resolution: "640x480"  # Start with lower resolution
+  fps: 30
+```
+
+6. **Update system:**
+- Windows Update to latest version
+- Update camera drivers in Device Manager
+- Update OpenCV: `pip install --upgrade opencv-python`
+
+### DirectShow Errors (Legacy)
+
+**Problem:** "Failed to open video device" or DirectShow backend errors
+
+**Note:** As of v2.0, the system uses MSMF backend by default. DirectShow is deprecated.
+
+**Solutions:**
+
+1. **Switch to MSMF backend** (recommended - see Camera Compatibility Issues above)
+
+2. **If you must use DirectShow:**
+   - Update OpenCV: `pip install --upgrade opencv-python`
+   - Install DirectShow filters: Download K-Lite Codec Pack (Basic) from [codecguide.com](https://codecguide.com)
+   - Check camera format compatibility
+
+3. **Reinstall Visual C++ Redistributables**
 
 ### Low Frame Rate / High Latency
 

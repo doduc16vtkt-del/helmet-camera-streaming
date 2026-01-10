@@ -112,8 +112,11 @@ bool Telemetry::sendDeviceInfo(const char* deviceId, const char* version) {
   } infoPacket;
   
   strncpy(infoPacket.type, "INFO", 8);
+  infoPacket.type[7] = '\0';  // Ensure null termination
   strncpy(infoPacket.deviceId, deviceId, 16);
+  infoPacket.deviceId[15] = '\0';  // Ensure null termination
   strncpy(infoPacket.version, version, 16);
+  infoPacket.version[15] = '\0';  // Ensure null termination
   infoPacket.checksum = calculateChecksum((uint8_t*)&infoPacket, sizeof(infoPacket) - 1);
   
   bool success = radio->write(&infoPacket, sizeof(infoPacket));

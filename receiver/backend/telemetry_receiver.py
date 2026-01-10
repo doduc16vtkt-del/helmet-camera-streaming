@@ -65,8 +65,9 @@ class TelemetryReceiver:
             self.radio.enableDynamicPayloads()
             self.radio.setAutoAck(True)
             
-            # Open reading pipe
-            address = b"HLMT1"
+            # Open reading pipe (address from config or default)
+            address_str = telemetry_config.get('address', 'HLMT1')
+            address = address_str.encode('utf-8')[:5]  # Max 5 bytes for nRF24
             self.radio.openReadingPipe(1, address)
             self.radio.startListening()
             

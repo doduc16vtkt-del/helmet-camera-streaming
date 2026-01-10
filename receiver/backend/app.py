@@ -40,7 +40,9 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__, 
             static_folder='../frontend',
             template_folder='../frontend')
-app.config['SECRET_KEY'] = 'helmet-camera-rf-secret-key'
+# Use environment variable or generate random secret key for production security
+import os
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY') or os.urandom(24).hex()
 CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
 

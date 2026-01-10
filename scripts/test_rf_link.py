@@ -32,8 +32,13 @@ def test_rf_link(channel=76, timeout=10):
     print(f"Timeout: {timeout} seconds\n")
     
     try:
+        # GPIO pin configuration (Raspberry Pi BCM numbering)
+        CE_PIN = 22
+        CSN_PIN = 0
+        SPI_SPEED = 8000000
+        
         # Initialize radio
-        radio = RF24(22, 0, 8000000)  # CE=22, CSN=0
+        radio = RF24(CE_PIN, CSN_PIN, SPI_SPEED)
         
         if not radio.begin():
             print("ERROR: Failed to initialize nRF24L01+")

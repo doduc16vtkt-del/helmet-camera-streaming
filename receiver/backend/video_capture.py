@@ -14,6 +14,7 @@ import cv2
 import threading
 import queue
 import time
+import platform
 
 logger = logging.getLogger(__name__)
 
@@ -33,13 +34,13 @@ class VideoCapture:
         self.frame_queues = {}
         self.running = {}
     
-    def start_capture(self, device_id, device_path='/dev/video0'):
+    def start_capture(self, device_id, device_path=None):
         """
         Start capturing video from a device
         
         Args:
             device_id: Unique identifier for this capture
-            device_path: Path to video device
+            device_path: Path to video device (auto-detected if None)
             
         Returns:
             bool: True if successful
@@ -49,8 +50,25 @@ class VideoCapture:
             return True
         
         try:
-            # Open video capture device
-            cap = cv2.VideoCapture(device_path)
+            # Auto-detect platform and configure device path
+            if device_path is None:
+                if platform.system() == 'Windows':
+                    # Windows uses integer device IDs
+                    device_path = device_id if isinstance(device_id, int) else 0
+                    logger.info(f"Windows detected: using device ID {device_path}")
+                else:
+                    # Linux uses device paths
+                    device_path = f'/dev/video{device_id}'
+                    logger.info(f"Linux detected: using device path {device_path}")
+            
+            # Open video capture device with platform-specific backend
+            if platform.system() == 'Windows':
+                # Use DirectShow backend on Windows for better performance
+                cap = cv2.VideoCapture(device_path, cv2.CAP_DSHOW)
+                logger.info(f"Using DirectShow backend for device {device_path}")
+            else:
+                # Use default backend (V4L2 on Linux)
+                cap = cv2.VideoCapture(device_path)
             
             if not cap.isOpened():
                 logger.error(f"Failed to open video device {device_path}")
@@ -73,6 +91,21 @@ class VideoCapture:
             fmt = capture_config.get('format', 'MJPEG')
             if fmt == 'MJPEG':
                 cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+            
+            # Windows-specific optimizations
+            if platform.system() == 'Windows':
+                # Minimal buffer for low latency
+                buffer_size = capture_config.get('buffer_size', 1)
+                cap.set(cv2.CAP_PROP_BUFFERSIZE, buffer_size)
+                logger.info(f"Set buffer size to {buffer_size} for low latency")
+                
+                # Try to enable hardware acceleration
+                if capture_config.get('hardware_acceleration', True):
+                    try:
+                        cap.set(cv2.CAP_PROP_HW_ACCELERATION, cv2.VIDEO_ACCELERATION_ANY)
+                        logger.info("Hardware acceleration enabled")
+                    except Exception as e:
+                        logger.warning(f"Could not enable hardware acceleration: {e}")
             
             self.captures[device_id] = cap
             self.frame_queues[device_id] = queue.Queue(maxsize=30)

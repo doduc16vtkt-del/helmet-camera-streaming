@@ -18,6 +18,7 @@ import threading
 import time
 from datetime import datetime
 import os
+import platform
 
 from rf_receiver import RFReceiver
 from video_capture import VideoCapture
@@ -49,7 +50,8 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 # Load configuration
 def load_config():
     """Load configuration from YAML file"""
-    config_path = '../../configs/receiver_config.yaml'
+    # Use os.path.join for cross-platform compatibility
+    config_path = os.path.join('..', '..', 'configs', 'receiver_config.yaml')
     try:
         with open(config_path, 'r') as f:
             config = yaml.safe_load(f)
@@ -300,7 +302,7 @@ def initialize_system():
     logger.info("Trạm Tiếp Nhận Camera Mũ Bảo Hiểm RF")
     logger.info("=" * 60)
     
-    # Create necessary directories
+    # Create necessary directories (cross-platform)
     os.makedirs('logs', exist_ok=True)
     os.makedirs(config['recording']['path'], exist_ok=True)
     
@@ -318,6 +320,14 @@ def initialize_system():
     
     logger.info("System initialized successfully")
     logger.info(f"Dashboard available at http://0.0.0.0:{config['dashboard']['port']}")
+    
+    # Auto-launch browser on Windows if configured
+    if platform.system() == 'Windows' and config.get('dashboard', {}).get('open_browser', False):
+        import webbrowser
+        port = config['dashboard']['port']
+        url = f"http://localhost:{port}"
+        logger.info(f"Auto-launching browser at {url}")
+        threading.Timer(1.5, lambda: webbrowser.open(url)).start()
 
 # ============================================
 # Main Entry Point / Điểm vào chính

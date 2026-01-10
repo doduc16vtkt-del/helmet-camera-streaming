@@ -1,0 +1,150 @@
+# Central Receiver Station Configuration - Windows
+# Cấu hình cho trạm tiếp nhận trung tâm - Windows
+
+# Platform identifier
+platform: windows
+
+receiver:
+  # RF channels to monitor (corresponding to 5.8GHz band channels)
+  channels: [1, 2, 3, 4, 5, 6, 7, 8]
+  scan_interval: 1000     # Channel scanning interval (ms)
+  auto_switch: true       # Auto-switch to strongest signal
+  rssi_threshold: -90     # Minimum RSSI to consider valid signal (dBm)
+  
+  # Multi-receiver support (Windows uses integer device IDs)
+  max_receivers: 4        # Number of physical receivers
+  receiver_devices:
+    - name: "RX1"
+      device: 0           # Integer device ID for Windows
+      channels: [1, 2]
+    - name: "RX2"
+      device: 1
+      channels: [3, 4]
+    - name: "RX3"
+      device: 2
+      channels: [5, 6]
+    - name: "RX4"
+      device: 3
+      channels: [7, 8]
+
+# RF telemetry receiver configuration
+rf_telemetry:
+  enabled: false          # Disabled on Windows by default (requires nRF24L01+ hardware)
+  frequency: "2.4GHz"
+  channel: 76
+  data_rate: "250kbps"
+
+# Video capture settings - Windows optimized
+capture:
+  backend: dshow          # DirectShow backend for Windows
+  device_type: integer    # Use integer device IDs (0, 1, 2...) instead of /dev/videoX
+  resolution: "640x480"   # Capture resolution
+  format: "MJPEG"         # MJPEG format for better performance
+  fps: 30                 # Frames per second
+  buffer_size: 1          # Minimal buffer for low latency (<200ms target)
+  
+  # Windows-specific optimizations
+  hardware_acceleration: true  # Enable GPU acceleration
+  
+  # Advanced settings
+  brightness: 128         # 0-255
+  contrast: 128           # 0-255
+  saturation: 128         # 0-255
+  hue: 0                  # -180 to 180
+
+# Recording configuration - Windows paths
+recording:
+  enabled: true
+  path: "C:\\HelmetCamera\\Recordings"  # Windows path format
+  format: "mp4"           # mp4, avi, mkv
+  codec: "h264"           # h264, h264_nvenc (NVIDIA GPU), h264_qsv (Intel GPU)
+  quality: 23             # CRF value for h264 (18-28, lower is better)
+  retention_days: 7       # Auto-delete recordings older than N days
+  auto_start: true        # Start recording on signal detection
+  split_duration: 600     # Split recording every N seconds (0 = no split)
+  
+  # GPU encoding (Windows)
+  use_gpu_encoding: true  # Try GPU encoding if available
+  gpu_encoder: "auto"     # auto, nvenc (NVIDIA), qsv (Intel), amf (AMD)
+  
+  # Naming convention
+  filename_pattern: "{device_id}_{timestamp}"
+  timestamp_format: "%Y%m%d_%H%M%S"
+
+# Dashboard web interface
+dashboard:
+  host: "0.0.0.0"        # Listen on all interfaces
+  port: 8080             # Web interface port
+  max_cameras: 8         # Maximum cameras to display
+  websocket_port: 8081   # WebSocket port for real-time updates
+  
+  # Windows-specific
+  open_browser: true     # Auto-open browser on startup
+  
+  # Authentication (optional)
+  auth_enabled: false
+  username: "admin"
+  password: "admin123"
+  
+  # UI settings
+  theme: "dark"          # dark, light
+  default_layout: "grid" # grid, list, single
+  grid_columns: 2        # Columns in grid view
+  refresh_rate: 30       # Video refresh rate (fps)
+
+# Storage management
+storage:
+  max_disk_usage: 90     # Maximum disk usage percentage
+  cleanup_enabled: true  # Auto-cleanup old recordings
+  min_free_space: 5      # Minimum free space in GB
+  backup_enabled: false
+  backup_path: "D:\\HelmetCamera\\Backup"  # Windows backup path
+
+# Notification settings
+notifications:
+  enabled: true
+  low_battery_alert: true
+  signal_loss_alert: true
+  disk_full_alert: true
+  
+  # Email notifications (optional)
+  email_enabled: false
+  smtp_server: "smtp.gmail.com"
+  smtp_port: 587
+  smtp_user: "your-email@gmail.com"
+  smtp_password: "your-password"
+  alert_recipients: ["admin@example.com"]
+
+# Performance settings - Windows optimized
+performance:
+  worker_threads: 4      # Number of processing threads
+  queue_size: 100        # Frame queue size
+  gpu_acceleration: true # Use GPU for encoding/decoding
+  
+  # Performance monitoring
+  monitor_gpu: true      # Monitor GPU usage (NVIDIA/AMD/Intel)
+  log_stats: true        # Log performance statistics
+  stats_interval: 5      # Stats logging interval in seconds
+  
+# Logging
+logging:
+  level: "INFO"          # DEBUG, INFO, WARN, ERROR
+  file: "logs\\receiver.log"  # Windows path format
+  max_size: 10           # MB
+  backup_count: 5        # Number of log file backups
+  console_output: true
+
+# Network settings
+network:
+  max_bandwidth: 0       # Maximum bandwidth per stream in Mbps (0 = unlimited)
+  buffer_time: 2         # Network buffer time in seconds
+  timeout: 10            # Connection timeout in seconds
+
+# Windows Service settings (for install_service_windows.ps1)
+service:
+  name: "HelmetCameraService"
+  display_name: "Helmet Camera RF Receiver"
+  description: "RF video streaming receiver for helmet cameras"
+  start_type: "auto"     # auto, manual, disabled
+  restart_on_failure: true
+  restart_delay: 30      # seconds

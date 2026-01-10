@@ -1,0 +1,130 @@
+# Central Receiver Station Configuration
+# Cấu hình cho trạm tiếp nhận trung tâm
+
+receiver:
+  # RF channels to monitor (corresponding to 5.8GHz band channels)
+  channels: [1, 2, 3, 4, 5, 6, 7, 8]
+  scan_interval: 1000     # Channel scanning interval (ms)
+  auto_switch: true       # Auto-switch to strongest signal
+  rssi_threshold: -90     # Minimum RSSI to consider valid signal (dBm)
+  
+  # Multi-receiver support
+  max_receivers: 4        # Number of physical receivers
+  receiver_devices:
+    - name: "RX1"
+      device: "/dev/video0"
+      channels: [1, 2]
+    - name: "RX2"
+      device: "/dev/video1"
+      channels: [3, 4]
+    - name: "RX3"
+      device: "/dev/video2"
+      channels: [5, 6]
+    - name: "RX4"
+      device: "/dev/video3"
+      channels: [7, 8]
+
+# RF telemetry receiver configuration
+rf_telemetry:
+  enabled: true
+  frequency: "2.4GHz"
+  channel: 76             # Must match camera config
+  data_rate: "250kbps"
+  
+  # nRF24L01+ pins (if using Raspberry Pi)
+  pins:
+    ce: 22                # BCM GPIO 22
+    csn: 8                # BCM GPIO 8 (CE0)
+    sck: 11               # BCM GPIO 11 (SCLK)
+    mosi: 10              # BCM GPIO 10 (MOSI)
+    miso: 9               # BCM GPIO 9 (MISO)
+
+# Video capture settings
+capture:
+  device: "/dev/video0"   # Primary capture device
+  resolution: "640x480"   # Capture resolution
+  format: "MJPEG"         # MJPEG, YUYV
+  fps: 30                 # Frames per second
+  buffer_size: 4          # Number of frame buffers
+  
+  # Advanced settings
+  brightness: 128         # 0-255
+  contrast: 128           # 0-255
+  saturation: 128         # 0-255
+  hue: 0                  # -180 to 180
+
+# Recording configuration
+recording:
+  enabled: true
+  path: "./recordings"
+  format: "mp4"           # mp4, avi, mkv
+  codec: "h264"           # h264, xvid, mjpeg
+  quality: 23             # CRF value for h264 (18-28, lower is better)
+  retention_days: 7       # Auto-delete recordings older than N days
+  auto_start: true        # Start recording on signal detection
+  split_duration: 600     # Split recording every N seconds (0 = no split)
+  
+  # Naming convention
+  filename_pattern: "{device_id}_{timestamp}"
+  timestamp_format: "%Y%m%d_%H%M%S"
+
+# Dashboard web interface
+dashboard:
+  host: "0.0.0.0"        # Listen on all interfaces
+  port: 8080             # Web interface port
+  max_cameras: 8         # Maximum cameras to display
+  websocket_port: 8081   # WebSocket port for real-time updates
+  
+  # Authentication (optional)
+  auth_enabled: false
+  username: "admin"
+  password: "admin123"
+  
+  # UI settings
+  theme: "dark"          # dark, light
+  default_layout: "grid" # grid, list, single
+  grid_columns: 2        # Columns in grid view
+  refresh_rate: 30       # Video refresh rate (fps)
+
+# Storage management
+storage:
+  max_disk_usage: 90     # Maximum disk usage percentage
+  cleanup_enabled: true  # Auto-cleanup old recordings
+  min_free_space: 5      # Minimum free space in GB
+  backup_enabled: false
+  backup_path: "/mnt/backup"
+
+# Notification settings
+notifications:
+  enabled: true
+  low_battery_alert: true
+  signal_loss_alert: true
+  disk_full_alert: true
+  
+  # Email notifications (optional)
+  email_enabled: false
+  smtp_server: "smtp.gmail.com"
+  smtp_port: 587
+  smtp_user: "your-email@gmail.com"
+  smtp_password: "your-password"
+  alert_recipients: ["admin@example.com"]
+
+# Performance settings
+performance:
+  worker_threads: 4      # Number of processing threads
+  queue_size: 100        # Frame queue size
+  gpu_acceleration: false # Use GPU for encoding (requires CUDA/OpenCL)
+  
+# Logging
+logging:
+  level: "INFO"          # DEBUG, INFO, WARN, ERROR
+  file: "./logs/receiver.log"
+  max_size: 10           # MB
+  backup_count: 5        # Number of log file backups
+  console_output: true
+
+# Network settings
+network:
+  max_bandwidth: 0       # Maximum bandwidth per stream in Mbps (0 = unlimited)
+  buffer_time: 2         # Network buffer time in seconds
+  timeout: 10            # Connection timeout in seconds

@@ -108,8 +108,12 @@ class WindowsCamera:
             # Hardware acceleration
             if capture_config.get('hardware_acceleration', True):
                 try:
-                    self.cap.set(cv2.CAP_PROP_HW_ACCELERATION, cv2.VIDEO_ACCELERATION_ANY)
-                    logger.info(f"Hardware acceleration enabled for camera {self.device_id}")
+                    # Check if VIDEO_ACCELERATION_ANY is available (OpenCV 4.5.1+)
+                    if hasattr(cv2, 'VIDEO_ACCELERATION_ANY'):
+                        self.cap.set(cv2.CAP_PROP_HW_ACCELERATION, cv2.VIDEO_ACCELERATION_ANY)
+                        logger.info(f"Hardware acceleration enabled for camera {self.device_id}")
+                    else:
+                        logger.info(f"Hardware acceleration not available in this OpenCV version for camera {self.device_id}")
                 except Exception as e:
                     logger.warning(f"Could not enable hardware acceleration: {e}")
             

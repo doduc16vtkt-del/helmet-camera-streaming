@@ -193,7 +193,9 @@ try {
     
     # Set power plan to High Performance
     Write-Info "   Setting power plan to High Performance..."
-    powercfg /setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c
+    # GUID for High Performance power plan
+    $HighPerformanceGUID = "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c"
+    powercfg /setactive $HighPerformanceGUID
     
     Write-Success "✅ Power settings optimized for 24/7 operation"
     Write-Info "   Note: This will increase power consumption"

@@ -140,9 +140,11 @@ class TestWindowsCamera(unittest.TestCase):
             print(f"  CPU: {stats['cpu_percent']:.1f}%")
             print(f"  RAM: {stats['ram_percent']:.1f}%")
             
-            if stats['gpu_stats'] and stats['gpu_stats'][0].get('name') != 'GPU detection not available':
-                for gpu in stats['gpu_stats']:
-                    print(f"  GPU: {gpu['name']}")
+            # Check if GPU stats are available and valid
+            if stats['gpu_stats'] and len(stats['gpu_stats']) > 0:
+                if stats['gpu_stats'][0].get('name') != 'GPU detection not available':
+                    for gpu in stats['gpu_stats']:
+                        print(f"  GPU: {gpu['name']}")
         except ImportError:
             print("⚠ psutil not installed, skipping performance monitoring test")
         except Exception as e:

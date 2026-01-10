@@ -184,8 +184,10 @@ if __name__ == '__main__':
     sys.exit(main())
 "@
 
-# Save test script to temp file
-$tempScript = Join-Path $env:TEMP "test_cameras.py"
+# Save test script to temp file with unique name
+$timestamp = Get-Date -Format "yyyyMMddHHmmss"
+$processId = $PID
+$tempScript = Join-Path $env:TEMP "test_cameras_${timestamp}_${processId}.py"
 $testScript | Out-File -FilePath $tempScript -Encoding UTF8
 
 # Run test script

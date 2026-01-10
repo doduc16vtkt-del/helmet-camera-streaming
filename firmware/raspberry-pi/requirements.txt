@@ -1,0 +1,20 @@
+# Raspberry Pi Camera RF Client Dependencies
+# Phụ thuộc cho client camera RF Raspberry Pi
+
+# Camera support
+picamera==1.13
+
+# RF24 library for nRF24L01+
+RF24==1.4.8
+
+# Configuration file support
+PyYAML==6.0
+
+# GPIO access
+RPi.GPIO==0.7.1
+
+# Optional: Video encoding
+# opencv-python==4.8.1.78  # For advanced video processing
+
+# Optional: Performance monitoring
+psutil==5.9.5

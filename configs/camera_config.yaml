@@ -1,0 +1,62 @@
+# Camera Unit Configuration
+# Cấu hình cho thiết bị camera trên mũ bảo hiểm
+
+camera:
+  resolution: "640x480"  # Độ phân giải video
+  fps: 30                # Frame per second
+  encoding: "NTSC"       # NTSC or PAL for analog transmission
+  quality: 10            # JPEG quality (10-63, lower is better)
+
+rf_video:
+  frequency: "5.8GHz"    # Video transmission frequency
+  channel: 1             # Channel 1-8 (5645-5945 MHz)
+  power: "25mW"          # 25mW, 200mW, 600mW (check local regulations)
+  band: "E"              # Band selection: A, B, E, F, R, L
+
+rf_telemetry:
+  frequency: "2.4GHz"    # Telemetry data frequency
+  channel: 76            # nRF24L01+ channel (0-125)
+  data_rate: "250kbps"   # 250kbps, 1Mbps, 2Mbps
+  device_id: "HELMET_01" # Unique device identifier
+  tx_power: "0dBm"       # -18dBm, -12dBm, -6dBm, 0dBm
+  retry_count: 15        # Number of retries
+  retry_delay: 5         # Delay between retries (ms)
+
+power:
+  battery_type: "LiPo_3S"      # Battery type (3S = 11.1V nominal)
+  voltage_alarm: 10.5          # Low voltage alarm (V)
+  voltage_critical: 9.9        # Critical voltage shutdown (V)
+  low_power_mode: true         # Enable power saving features
+  sleep_timeout: 300           # Auto-sleep after N seconds of inactivity
+  voltage_check_interval: 5000 # Battery check interval (ms)
+
+# GPIO Pin Configuration for ESP32-CAM
+pins:
+  # Camera pins are predefined by ESP32-CAM board
+  # RF Video TX pins (if controllable)
+  rf_video_power: -1      # GPIO for video TX power control (-1 = not used)
+  rf_video_channel: -1    # GPIO for channel selection (-1 = not used)
+  
+  # nRF24L01+ pins for telemetry
+  nrf24_ce: 2             # Chip Enable
+  nrf24_csn: 14           # Chip Select Not
+  nrf24_sck: 12           # SPI Clock
+  nrf24_mosi: 13          # SPI MOSI
+  nrf24_miso: 15          # SPI MISO
+  
+  # Power management
+  battery_adc: 33         # ADC pin for battery voltage
+  status_led: 4           # Status LED (also flash LED on ESP32-CAM)
+
+# Telemetry data transmission
+telemetry:
+  enabled: true
+  interval: 1000          # Send telemetry every N ms
+  include_gps: false      # Include GPS data (requires GPS module)
+  include_imu: false      # Include IMU data (requires IMU sensor)
+
+# Debug settings
+debug:
+  serial_enable: true
+  serial_baud: 115200
+  log_level: "INFO"       # DEBUG, INFO, WARN, ERROR

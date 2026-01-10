@@ -1,0 +1,53 @@
+Category,Component,Model/Specification,Quantity,Unit Price (VND),Total Price (VND),Notes,Where to Buy
+Camera Unit - Microcontroller,ESP32-CAM,AI-Thinker with OV2640 camera,1,100000,100000,Main microcontroller with integrated camera,Hshop.vn / iChip.vn
+Camera Unit - RF Video TX,5.8GHz Transmitter,TS5823 or TX5258 (25-600mW),1,200000,200000,FPV video transmitter,Nshop.vn / FPV stores
+Camera Unit - RF Telemetry,nRF24L01+,PA+LNA long range module,1,30000,30000,2.4GHz telemetry transceiver,Hshop.vn / iChip.vn
+Camera Unit - Battery,LiPo Battery,3S 11.1V 1500-2000mAh,1,150000,150000,Power source,RC/FPV hobby stores
+Camera Unit - Voltage Regulator,DC-DC Converter,LM2596 5V 3A step-down,1,20000,20000,Convert battery voltage to 5V,iChip.vn / Hshop.vn
+Camera Unit - Video Antenna,5.8GHz Antenna,Cloverleaf or pagoda RHCP,1,50000,50000,For video transmission,FPV stores
+Camera Unit - Telemetry Antenna,2.4GHz Antenna,Duck antenna for nRF24,1,15000,15000,For telemetry transmission,Hshop.vn
+Camera Unit - Connectors,Various Connectors,XT60 JST SMA cables,1,30000,30000,Battery and antenna connections,Electronic stores
+Camera Unit - Enclosure,Case/Mount,3D printed or commercial,1,50000,50000,Protect electronics,3D printing service
+Camera Unit - Resistors,Voltage Divider,33kΩ and 10kΩ,2,1000,1000,Battery voltage sensing,iChip.vn
+Camera Unit - Capacitors,Electrolytic Capacitors,10µF 100µF,3,3000,3000,Power filtering,iChip.vn
+Camera Unit - Wires,Silicone Wire,22AWG 1 meter,1,10000,10000,Connections,Electronic stores
+Camera Unit - TOTAL,,,,,659000,Per helmet unit (~$27 USD),
+,,,,,,
+Receiver - Computer,Raspberry Pi 4,4GB RAM with case,1,1500000,1500000,Main receiver computer or use existing PC,Official distributors
+Receiver - Storage,MicroSD Card,64GB Class 10 or better,1,200000,200000,Operating system and data,Electronic stores
+Receiver - Power Supply,USB-C Power Adapter,5V 3A for Raspberry Pi 4,1,100000,100000,Power for Pi,Official distributors
+Receiver - RF Video RX,5.8GHz Receiver,RC832 RX5808 or similar,4,300000,1200000,Video receivers for 4 cameras,FPV stores
+Receiver - USB Capture,Video Capture Card,EasyCap or HDMI capture USB,4,200000,800000,Convert analog video to USB,Lazada / Shopee
+Receiver - RF Telemetry,nRF24L01+,PA+LNA long range module,1,30000,30000,Telemetry receiver,Hshop.vn / iChip.vn
+Receiver - Video Antennas,5.8GHz Antennas,Circular polarized high gain,4,100000,400000,For video reception,FPV stores
+Receiver - Telemetry Antenna,2.4GHz Antenna,For nRF24 module,1,15000,15000,For telemetry reception,Hshop.vn
+Receiver - USB Hub,Powered USB Hub,USB 3.0 with external power,1,150000,150000,Connect multiple capture cards,Electronic stores
+Receiver - Enclosure,Case/Rack,For equipment mounting,1,100000,100000,Organize components,3D printing or buy
+Receiver - Cables,Various Cables,USB SMA extension cables,1,100000,100000,Connections,Electronic stores
+Receiver - Storage (Optional),External SSD,256GB for recordings,1,500000,500000,Optional but recommended,Electronic stores
+Receiver - TOTAL,,,,,5095000,Central station (~$213 USD),
+,,,,,,
+GRAND TOTAL,Camera Unit + Receiver,,,,,5754000,Complete system (~$240 USD),
+,,,,,,
+Additional Items - Tools,Soldering Kit,Iron solder wire flux,1,200000,200000,For assembly,Electronic stores
+Additional Items - Tools,Multimeter,Digital multimeter,1,150000,150000,For testing and debugging,Electronic stores
+Additional Items - Tools,Wire Stripper,Wire cutter and stripper,1,50000,50000,Wire preparation,Hardware stores
+Additional Items - Tools,Heat Shrink Kit,Assorted sizes,1,50000,50000,Wire insulation,Electronic stores
+Additional Items - Tools,Hot Glue Gun,With glue sticks,1,100000,100000,Securing components,Hardware stores
+Additional Items - Tools,Screwdriver Set,Precision screwdrivers,1,100000,100000,Assembly,Hardware stores
+Additional Items - TOOLS TOTAL,,,,,650000,One-time purchase,
+,,,,,,
+Notes:,,,,,,,
+,All prices are approximate and in Vietnamese Dong (VND),,,,,,,
+,Prices may vary by supplier and time of purchase,,,,,,,
+,1 USD ≈ 24000 VND (approximate exchange rate),,,,,,,
+,Check latest prices at suppliers before purchasing,,,,,,,
+,Consider buying extra components as spares,,,,,,,
+,Some items can be purchased in bulk for discount,,,,,,,
+,,,,,,,,
+Suppliers Vietnam:,,,,,,,
+,Hshop.vn - Electronics components ESP32 nRF24,,,,,,,
+,Nshop.vn - FPV equipment video TX/RX,,,,,,,
+,iChip.vn - Electronics and development boards,,,,,,,
+,Lazada.vn / Shopee.vn - General electronics,,,,,,,
+,Local electronics markets - Pham Ngu Lao (HCMC) Tran Nhat Duat (Hanoi),,,,,,,

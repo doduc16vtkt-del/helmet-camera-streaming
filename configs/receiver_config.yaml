@@ -41,17 +41,32 @@ rf_telemetry:
 
 # Video capture settings
 capture:
-  device: "/dev/video0"   # Primary capture device
-  resolution: "640x480"   # Capture resolution
-  format: "MJPEG"         # MJPEG, YUYV
-  fps: 30                 # Frames per second
-  buffer_size: 4          # Number of frame buffers
+  # USB camera testing (thay vì RF receiver)
+  devices:
+    - id: 0              # Camera USB index 0
+      name: "USB Camera 1"
+      enabled: true
+    - id: 1              # Camera USB index 1  
+      name: "USB Camera 2"
+      enabled: true
+  
+  resolution:  "640x480"
+  fps: 30
+  format: "MJPEG"       # Tốt cho USB camera
+  buffer_size: 1         # Low latency
+
+ #RF
+  #device: "/dev/video0"   # Primary capture device
+  #resolution: "640x480"   # Capture resolution
+  #format: "MJPEG"         # MJPEG, YUYV
+  #fps: 30                 # Frames per second
+  #buffer_size: 4          # Number of frame buffers
   
   # Advanced settings
-  brightness: 128         # 0-255
-  contrast: 128           # 0-255
-  saturation: 128         # 0-255
-  hue: 0                  # -180 to 180
+  #brightness: 128         # 0-255
+  #contrast: 128           # 0-255
+  #saturation: 128         # 0-255
+  #hue: 0                  # -180 to 180
 
 # Recording configuration
 recording:

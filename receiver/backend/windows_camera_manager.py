@@ -1,586 +1,360 @@
 """
-Windows Camera Manager
-Quản lý Camera cho Windows
-
-Optimized multi-camera capture for Windows using DirectShow backend
-Chụp đa camera tối ưu cho Windows sử dụng DirectShow
-
-Author: Helmet Camera RF System
-License: MIT
+Windows-optimized camera manager with MSMF backend
+Ultra-low latency for Windows PC - FIXED VERSION
 """
-
-import logging
 import cv2
+import numpy as np
 import threading
 import queue
 import time
-import platform
-from typing import Dict, List, Optional, Tuple
-from dataclasses import dataclass
-from datetime import datetime
+from typing import Dict, Optional
+import psutil
+import logging
 
+# Setup logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class CameraStats:
-    """Statistics for a camera"""
-    device_id: int
-    fps: float
-    frame_count: int
-    dropped_frames: int
-    latency_ms: float
-    last_frame_time: float
-    is_active: bool
 
 
 class WindowsCamera:
     """
-    Single camera capture with DirectShow optimization
-    Chụp camera đơn với tối ưu DirectShow
+    Single camera handler optimized for Windows MSMF backend
     """
-    
-    def __init__(self, device_id: int, config: dict):
-        """
-        Initialize Windows camera
-        
-        Args:
-            device_id: Camera device index (0, 1, 2, ...)
-            config: Camera configuration dictionary
-        """
+    def __init__(self, device_id: int, width: int = 640, height: int = 480, fps: int = 30):
         self.device_id = device_id
-        self.config = config
+        self.width = width
+        self.height = height
+        self.fps = fps
         self.cap = None
-        self.frame_queue = queue.Queue(maxsize=2)  # Minimal queue for low latency
+        self.frame_queue = queue.Queue(maxsize=2)
         self.running = False
         self.thread = None
-        self.stats = CameraStats(
-            device_id=device_id,
-            fps=0.0,
-            frame_count=0,
-            dropped_frames=0,
-            latency_ms=0.0,
-            last_frame_time=0.0,
-            is_active=False
-        )
-        self._lock = threading.Lock()
+        self.last_frame_time = 0
+        self.frame_count = 0
         
     def start(self) -> bool:
-        """
-        Start camera capture
-        
-        Returns:
-            bool: True if successful
-        """
-        if self.running:
-            logger.warning(f"Camera {self.device_id} already running")
-            return True
-        
+        """Initialize and start camera capture with MSMF backend"""
         try:
-            # Open with DirectShow backend
-            self.cap = cv2.VideoCapture(self.device_id, cv2.CAP_DSHOW)
+            logger.info(f"Opening camera {self.device_id} with Media Foundation (MSMF)...")
             
-            if not self.cap.isOpened():
+            # Use MSMF backend (best for Windows 10/11)
+            self.cap = cv2.VideoCapture(self.device_id, cv2.CAP_MSMF)
+            
+            if not self. cap.isOpened():
                 logger.error(f"Failed to open camera {self.device_id}")
                 return False
             
-            # Configure camera settings
-            capture_config = self.config.get('capture', {})
+            logger.info(f"✅ Camera {self.device_id} opened with MSMF")
             
-            # Set resolution
-            resolution = capture_config.get('resolution', '640x480').split('x')
-            width, height = int(resolution[0]), int(resolution[1])
-            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
-            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+            # CRITICAL: Read initial frame BEFORE setting properties
+            logger.info("Capturing initial frame to initialize camera...")
+            ret, test_frame = self.cap.read()
             
-            # Set FPS
-            fps = capture_config.get('fps', 30)
-            self.cap.set(cv2.CAP_PROP_FPS, fps)
+            if not ret:
+                logger.error("Failed to capture initial frame")
+                self.cap.release()
+                return False
             
-            # MJPEG format for better performance
-            if capture_config.get('format', 'MJPEG') == 'MJPEG':
-                self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+            logger.info(f"✅ Initial frame captured:  {test_frame.shape}")
             
-            # Low-latency settings
-            buffer_size = capture_config.get('buffer_size', 1)
-            self.cap.set(cv2.CAP_PROP_BUFFERSIZE, buffer_size)
+            # Now try to set properties (camera may ignore them)
+            try:
+                self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
+                self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
+                self.cap.set(cv2.CAP_PROP_FPS, self.fps)
+                self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # Low latency
+            except Exception as e:
+                logger.warning(f"Could not set all properties: {e}")
             
-            # Hardware acceleration
-            if capture_config.get('hardware_acceleration', True):
-                try:
-                    # Check if VIDEO_ACCELERATION_ANY is available (OpenCV 4.5.1+)
-                    if hasattr(cv2, 'VIDEO_ACCELERATION_ANY'):
-                        self.cap.set(cv2.CAP_PROP_HW_ACCELERATION, cv2.VIDEO_ACCELERATION_ANY)
-                        logger.info(f"Hardware acceleration enabled for camera {self.device_id}")
-                    else:
-                        logger.info(f"Hardware acceleration not available in this OpenCV version for camera {self.device_id}")
-                except Exception as e:
-                    logger.warning(f"Could not enable hardware acceleration: {e}")
+            # Get actual settings
+            actual_width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            actual_height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            actual_fps = self.cap.get(cv2.CAP_PROP_FPS)
+            
+            logger.info(f"Camera {self.device_id} actual settings:  {actual_width}x{actual_height} @{actual_fps:. 1f}fps")
             
             # Start capture thread
             self.running = True
-            self.thread = threading.Thread(target=self._capture_loop, daemon=True)
+            self.thread = threading. Thread(target=self._capture_loop, daemon=True)
             self.thread.start()
             
-            self.stats.is_active = True
-            logger.info(f"Started camera {self.device_id} ({width}x{height} @ {fps}fps)")
+            logger.info(f"✅ Camera {self.device_id} started successfully")
             return True
             
-        except Exception as e:
-            logger.error(f"Failed to start camera {self.device_id}: {e}")
+        except Exception as e: 
+            logger.error(f"Error starting camera {self.device_id}:  {e}")
+            if self.cap:
+                self. cap.release()
             return False
+    
+    def _capture_loop(self):
+        """Continuous capture loop (runs in separate thread)"""
+        while self.running:
+            ret, frame = self.cap.read()
+            
+            if ret:
+                # Non-blocking put (drop if queue full)
+                try:
+                    self.frame_queue.put_nowait(frame)
+                    self.frame_count += 1
+                    self.last_frame_time = time.time()
+                except queue. Full:
+                    pass  # Drop old frame
+            else:
+                logger.warning(f"Camera {self.device_id}:  Failed to read frame")
+                time.sleep(0.01)
+    
+    def read(self) -> tuple:
+        """Read latest frame (non-blocking)"""
+        try:
+            frame = self.frame_queue.get(timeout=0.1)
+            return True, frame
+        except queue.Empty:
+            return False, None
+    
+    def get_fps(self) -> float:
+        """Calculate actual FPS"""
+        if self.last_frame_time > 0:
+            return self.fps
+        return 0.0
     
     def stop(self):
         """Stop camera capture"""
-        if not self.running:
-            return
-        
         self.running = False
-        
-        # Wait for thread to finish
         if self.thread:
-            self.thread.join(timeout=2.0)
-            self.thread = None
-        
-        # Release camera
+            self.thread.join(timeout=2. 0)
         if self.cap:
             self.cap.release()
-            self.cap = None
-        
-        self.stats.is_active = False
-        logger.info(f"Stopped camera {self.device_id}")
-    
-    def get_frame(self) -> Optional[Tuple[bool, any]]:
-        """
-        Get latest frame from camera
-        
-        Returns:
-            Tuple of (success, frame) or None if no frame available
-        """
-        try:
-            frame = self.frame_queue.get_nowait()
-            return (True, frame)
-        except queue.Empty:
-            return None
-    
-    def get_stats(self) -> CameraStats:
-        """Get camera statistics"""
-        with self._lock:
-            return self.stats
-    
-    def _capture_loop(self):
-        """Background thread for capturing frames"""
-        logger.info(f"Capture loop started for camera {self.device_id}")
-        
-        frame_times = []
-        last_stats_update = time.time()
-        
-        while self.running:
-            try:
-                start_time = time.time()
-                ret, frame = self.cap.read()
-                
-                if not ret:
-                    logger.warning(f"Failed to read frame from camera {self.device_id}")
-                    with self._lock:
-                        self.stats.dropped_frames += 1
-                    time.sleep(0.01)
-                    continue
-                
-                # Calculate latency
-                capture_time = time.time()
-                latency_ms = (capture_time - start_time) * 1000
-                
-                # Add frame to queue (drop oldest if full)
-                if self.frame_queue.full():
-                    try:
-                        self.frame_queue.get_nowait()
-                        with self._lock:
-                            self.stats.dropped_frames += 1
-                    except queue.Empty:
-                        pass
-                
-                self.frame_queue.put(frame)
-                
-                # Update statistics
-                with self._lock:
-                    self.stats.frame_count += 1
-                    self.stats.latency_ms = latency_ms
-                    self.stats.last_frame_time = capture_time
-                
-                # Calculate FPS every second
-                frame_times.append(capture_time)
-                if capture_time - last_stats_update >= 1.0:
-                    # Remove old frame times
-                    frame_times = [t for t in frame_times if capture_time - t < 1.0]
-                    with self._lock:
-                        self.stats.fps = len(frame_times)
-                    last_stats_update = capture_time
-                
-            except Exception as e:
-                logger.error(f"Error in capture loop for camera {self.device_id}: {e}")
-                time.sleep(0.1)
-        
-        logger.info(f"Capture loop stopped for camera {self.device_id}")
+        logger.info(f"Camera {self.device_id} stopped")
 
 
 class WindowsMultiCameraManager:
     """
-    Multi-camera manager for Windows
-    Quản lý đa camera cho Windows
+    Manage multiple cameras on Windows with MSMF backend
     """
-    
-    def __init__(self, config: dict):
-        """
-        Initialize multi-camera manager
-        
-        Args:
-            config: System configuration dictionary
-        """
-        self.config = config
+    def __init__(self, max_cameras: int = 8):
+        self.max_cameras = max_cameras
         self.cameras: Dict[int, WindowsCamera] = {}
-        self._lock = threading.Lock()
-    
-    def discover_cameras(self) -> List[int]:
-        """
-        Auto-discover available cameras
+        self.running = False
         
-        Returns:
-            List of available camera device IDs
-        """
-        logger.info("Discovering cameras...")
-        available_cameras = []
+    def discover_cameras(self) -> list:
+        """Auto-discover connected cameras with MSMF"""
+        logger.info("Discovering cameras with MSMF backend...")
+        available = []
         
-        # Try to open cameras 0-9
-        for device_id in range(10):
-            try:
-                cap = cv2.VideoCapture(device_id, cv2.CAP_DSHOW)
-                if cap.isOpened():
-                    available_cameras.append(device_id)
-                    # Get camera name if available
-                    try:
-                        backend_name = cap.getBackendName()
-                        logger.info(f"Found camera {device_id} (backend: {backend_name})")
-                    except:
-                        logger.info(f"Found camera {device_id}")
-                    cap.release()
-            except Exception as e:
-                logger.debug(f"No camera at index {device_id}: {e}")
+        for i in range(10):
+            cap = cv2.VideoCapture(i, cv2.CAP_MSMF)
+            if cap. isOpened():
+                # Test if can read frames
+                ret, _ = cap.read()
+                if ret:
+                    available.append(i)
+                    logger. info(f"Found camera at index {i}")
+                cap.release()
+            else:
+                break
         
-        logger.info(f"Discovered {len(available_cameras)} cameras: {available_cameras}")
-        return available_cameras
+        logger.info(f"Total cameras found: {len(available)}")
+        return available
     
     def start_camera(self, device_id: int) -> bool:
-        """
-        Start capturing from a camera
+        """Start a specific camera"""
+        if device_id in self.cameras:
+            logger.warning(f"Camera {device_id} already started")
+            return True
         
-        Args:
-            device_id: Camera device ID
-            
-        Returns:
-            bool: True if successful
-        """
-        with self._lock:
-            if device_id in self.cameras:
-                logger.warning(f"Camera {device_id} already started")
-                return True
-            
-            camera = WindowsCamera(device_id, self.config)
-            if camera.start():
-                self.cameras[device_id] = camera
-                return True
+        if len(self.cameras) >= self.max_cameras:
+            logger. error(f"Max cameras ({self. max_cameras}) reached")
             return False
-    
-    def stop_camera(self, device_id: int):
-        """
-        Stop capturing from a camera
         
-        Args:
-            device_id: Camera device ID
-        """
-        with self._lock:
-            if device_id in self.cameras:
-                self.cameras[device_id].stop()
-                del self.cameras[device_id]
+        camera = WindowsCamera(device_id)
+        if camera.start():
+            self.cameras[device_id] = camera
+            return True
+        return False
     
-    def stop_all_cameras(self):
+    def start_all_cameras(self) -> int:
+        """Start all discovered cameras"""
+        available = self.discover_cameras()
+        started = 0
+        
+        for device_id in available[: self.max_cameras]:
+            if self.start_camera(device_id):
+                started += 1
+        
+        self.running = True
+        logger.info(f"Started {started}/{len(available)} cameras")
+        return started
+    
+    def get_frames(self) -> Dict[str, np.ndarray]:
+        """Get latest frames from all cameras"""
+        frames = {}
+        for device_id, camera in self. cameras.items():
+            ret, frame = camera.read()
+            if ret:
+                frames[f"camera_{device_id}"] = frame
+        return frames
+    
+    def get_stats(self) -> dict:
+        """Get system and camera stats"""
+        return {
+            "active_cameras": len(self.cameras),
+            "cpu_percent": psutil.cpu_percent(interval=0.1),
+            "memory_percent": psutil.virtual_memory().percent,
+            "camera_fps": {
+                f"camera_{id}": cam.get_fps() 
+                for id, cam in self.cameras.items()
+            }
+        }
+    
+    def stop_all(self):
         """Stop all cameras"""
-        with self._lock:
-            for camera in self.cameras.values():
-                camera.stop()
-            self.cameras.clear()
-    
-    def get_frame(self, device_id: int) -> Optional[Tuple[bool, any]]:
-        """
-        Get latest frame from a camera
-        
-        Args:
-            device_id: Camera device ID
-            
-        Returns:
-            Tuple of (success, frame) or None
-        """
-        with self._lock:
-            if device_id in self.cameras:
-                return self.cameras[device_id].get_frame()
-        return None
-    
-    def get_all_stats(self) -> Dict[int, CameraStats]:
-        """
-        Get statistics for all cameras
-        
-        Returns:
-            Dictionary mapping device_id to CameraStats
-        """
-        stats = {}
-        with self._lock:
-            for device_id, camera in self.cameras.items():
-                stats[device_id] = camera.get_stats()
-        return stats
-    
-    def get_active_cameras(self) -> List[int]:
-        """Get list of active camera IDs"""
-        with self._lock:
-            return list(self.cameras.keys())
+        self.running = False
+        for camera in self.cameras.values():
+            camera.stop()
+        self.cameras.clear()
+        logger.info("All cameras stopped")
 
 
 class WindowsPerformanceMonitor:
-    """
-    Performance monitoring for Windows
-    Giám sát hiệu suất cho Windows
-    """
+    """Monitor Windows system performance"""
     
-    def __init__(self):
-        """Initialize performance monitor"""
-        self.stats_history = []
-        self.monitoring = False
-        self.monitor_thread = None
-        
-    def start_monitoring(self, interval: float = 5.0):
-        """
-        Start monitoring system performance
-        
-        Args:
-            interval: Update interval in seconds
-        """
-        if self.monitoring:
-            logger.warning("Performance monitoring already running")
-            return
-        
-        self.monitoring = True
-        self.monitor_thread = threading.Thread(
-            target=self._monitor_loop,
-            args=(interval,),
-            daemon=True
-        )
-        self.monitor_thread.start()
-        logger.info("Performance monitoring started")
-    
-    def stop_monitoring(self):
-        """Stop monitoring"""
-        self.monitoring = False
-        if self.monitor_thread:
-            self.monitor_thread.join(timeout=2.0)
-            self.monitor_thread = None
-        logger.info("Performance monitoring stopped")
-    
-    def get_system_stats(self) -> dict:
-        """
-        Get current system statistics
-        
-        Returns:
-            Dictionary with CPU, RAM, and GPU stats
-        """
-        stats = {
-            'timestamp': datetime.now().isoformat(),
-            'cpu_percent': 0.0,
-            'ram_percent': 0.0,
-            'ram_used_mb': 0,
-            'ram_total_mb': 0,
-            'gpu_stats': []
-        }
-        
+    @staticmethod
+    def get_gpu_info():
+        """Get GPU information (NVIDIA only)"""
+        import subprocess
         try:
-            import psutil
-            
-            # CPU usage
-            stats['cpu_percent'] = psutil.cpu_percent(interval=0.1)
-            
-            # RAM usage
-            mem = psutil.virtual_memory()
-            stats['ram_percent'] = mem.percent
-            stats['ram_used_mb'] = mem.used // (1024 * 1024)
-            stats['ram_total_mb'] = mem.total // (1024 * 1024)
-            
-        except ImportError:
-            logger.warning("psutil not installed, CPU/RAM stats unavailable")
-        except Exception as e:
-            logger.error(f"Error getting system stats: {e}")
-        
-        # Try to get GPU stats
-        stats['gpu_stats'] = self._get_gpu_stats()
-        
-        return stats
-    
-    def _get_gpu_stats(self) -> List[dict]:
-        """
-        Get GPU statistics (NVIDIA, AMD, Intel)
-        
-        Returns:
-            List of GPU statistics dictionaries
-        """
-        gpu_stats = []
-        
-        # Try NVIDIA GPUs first
-        try:
-            import subprocess
             result = subprocess.run(
-                ['nvidia-smi', '--query-gpu=index,name,utilization.gpu,memory.used,memory.total,temperature.gpu',
+                ['nvidia-smi', '--query-gpu=utilization.gpu,memory.used,memory.total', 
                  '--format=csv,noheader,nounits'],
                 capture_output=True,
                 text=True,
-                timeout=5
+                timeout=2
             )
-            
             if result.returncode == 0:
-                for line in result.stdout.strip().split('\n'):
-                    if line:
-                        parts = [p.strip() for p in line.split(',')]
-                        if len(parts) >= 6:
-                            gpu_stats.append({
-                                'type': 'NVIDIA',
-                                'index': int(parts[0]),
-                                'name': parts[1],
-                                'utilization': float(parts[2]),
-                                'memory_used_mb': int(parts[3]),
-                                'memory_total_mb': int(parts[4]),
-                                'temperature_c': int(parts[5])
-                            })
-        except (FileNotFoundError, subprocess.TimeoutExpired, Exception) as e:
-            logger.debug(f"NVIDIA GPU not available: {e}")
-        
-        # If no NVIDIA GPUs, could add AMD/Intel detection here
-        if not gpu_stats:
-            gpu_stats.append({
-                'type': 'Unknown',
-                'name': 'GPU detection not available',
-                'utilization': 0.0
-            })
-        
-        return gpu_stats
+                gpu_util, mem_used, mem_total = result.stdout.strip().split(',')
+                return {
+                    "gpu_utilization": float(gpu_util),
+                    "memory_used_mb": float(mem_used),
+                    "memory_total_mb": float(mem_total)
+                }
+        except: 
+            pass
+        return None
     
-    def _monitor_loop(self, interval: float):
-        """Background monitoring loop"""
-        logger.info("Performance monitor loop started")
+    @staticmethod
+    def print_stats(camera_manager:  WindowsMultiCameraManager):
+        """Print comprehensive stats"""
+        stats = camera_manager.get_stats()
+        gpu_info = WindowsPerformanceMonitor.get_gpu_info()
         
-        while self.monitoring:
-            try:
-                stats = self.get_system_stats()
-                self.stats_history.append(stats)
-                
-                # Keep only last 100 samples
-                if len(self.stats_history) > 100:
-                    self.stats_history = self.stats_history[-100:]
-                
-                # Log stats
-                logger.debug(f"CPU: {stats['cpu_percent']:.1f}% | "
-                           f"RAM: {stats['ram_percent']:.1f}% "
-                           f"({stats['ram_used_mb']}MB / {stats['ram_total_mb']}MB)")
-                
-                for gpu in stats['gpu_stats']:
-                    if 'utilization' in gpu:
-                        logger.debug(f"GPU {gpu.get('index', 0)} ({gpu['name']}): "
-                                   f"{gpu['utilization']:.1f}%")
-                
-            except Exception as e:
-                logger.error(f"Error in monitor loop: {e}")
-            
-            time.sleep(interval)
+        print("\n" + "="*60)
+        print("WINDOWS PERFORMANCE STATS")
+        print("="*60)
+        print(f"Active Cameras: {stats['active_cameras']}")
+        print(f"CPU Usage: {stats['cpu_percent']:.1f}%")
+        print(f"RAM Usage: {stats['memory_percent']:.1f}%")
         
-        logger.info("Performance monitor loop stopped")
-    
-    def get_stats_history(self) -> List[dict]:
-        """Get historical statistics"""
-        return self.stats_history.copy()
+        if gpu_info:
+            print(f"GPU Usage: {gpu_info['gpu_utilization']:.1f}%")
+            print(f"GPU Memory: {gpu_info['memory_used_mb']:.0f}/{gpu_info['memory_total_mb']:.0f} MB")
+        
+        print("\nCamera FPS:")
+        for cam, fps in stats['camera_fps']. items():
+            print(f"  {cam}: {fps:.1f} FPS")
+        
+        print("="*60 + "\n")
 
 
-# Utility functions
-def test_camera(device_id: int, duration: float = 5.0) -> dict:
-    """
-    Test a camera for a specified duration
-    
-    Args:
-        device_id: Camera device ID
-        duration: Test duration in seconds
-        
-    Returns:
-        Dictionary with test results
-    """
+# Test functions
+def test_camera(device_id: int, duration: float = 3.0):
+    """Test single camera for specified duration"""
     logger.info(f"Testing camera {device_id} for {duration} seconds...")
     
-    config = {
-        'capture': {
-            'resolution': '640x480',
-            'fps': 30,
-            'format': 'MJPEG',
-            'buffer_size': 1,
-            'hardware_acceleration': True
-        }
-    }
-    
-    camera = WindowsCamera(device_id, config)
+    camera = WindowsCamera(device_id)
     
     if not camera.start():
-        return {
-            'success': False,
-            'error': 'Failed to start camera'
-        }
+        return {"success": False, "error": "Failed to start camera"}
     
-    # Wait for test duration
-    time.sleep(duration)
+    # Capture frames for duration
+    start_time = time.time()
+    frame_count = 0
     
-    # Get final stats
-    stats = camera.get_stats()
+    while time.time() - start_time < duration:
+        ret, frame = camera.read()
+        if ret:
+            frame_count += 1
+            # Could display frame here if needed
+            # cv2.imshow(f'Camera {device_id}', frame)
+            # cv2.waitKey(1)
+        time.sleep(0.03)  # ~30fps
+    
     camera.stop()
+    # cv2.destroyAllWindows()
+    
+    actual_fps = frame_count / duration
     
     return {
-        'success': True,
-        'device_id': device_id,
-        'total_frames': stats.frame_count,
-        'dropped_frames': stats.dropped_frames,
-        'average_fps': stats.fps,
-        'average_latency_ms': stats.latency_ms
+        "success":  True,
+        "frames_captured": frame_count,
+        "duration": duration,
+        "fps":  actual_fps
     }
 
 
-if __name__ == '__main__':
-    # Example usage
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    )
-    
+# Main test
+if __name__ == "__main__":
+    print("="*60)
     print("Windows Camera Manager Test")
-    print("=" * 60)
+    print("="*60)
     
     # Discover cameras
-    config = {
-        'capture': {
-            'resolution': '640x480',
-            'fps': 30,
-            'format': 'MJPEG',
-            'buffer_size': 1,
-            'hardware_acceleration': True
-        }
-    }
-    
-    manager = WindowsMultiCameraManager(config)
+    manager = WindowsMultiCameraManager()
     available = manager.discover_cameras()
     
-    if available:
-        print(f"\nFound {len(available)} cameras")
-        print("\nTesting first camera...")
-        result = test_camera(available[0], duration=3.0)
-        print(f"Test result: {result}")
+    if not available:
+        print("\n❌ No cameras found!")
+        exit(1)
+    
+    print(f"\nFound {len(available)} cameras\n")
+    
+    # Test first camera
+    print("Testing first camera...")
+    result = test_camera(available[0], duration=3.0)
+    
+    if result["success"]: 
+        print(f"\n✅ Test result: {result}")
+        print(f"   Captured {result['frames_captured']} frames in {result['duration']:. 1f}s")
+        print(f"   Average FPS: {result['fps']:.1f}")
     else:
-        print("No cameras found")
+        print(f"\n❌ Test failed: {result. get('error')}")
+        exit(1)
+    
+    # Start all cameras
+    print("\n" + "="*60)
+    print("Starting all cameras...")
+    print("="*60)
+    
+    started = manager.start_all_cameras()
+    
+    if started == 0:
+        print("❌ No cameras started")
+        exit(1)
+    
+    print(f"\n✅ {started} camera(s) started\n")
+    print("Press Ctrl+C to stop.. .\n")
+    
+    try:
+        while True:
+            # Print stats every 5 seconds
+            WindowsPerformanceMonitor.print_stats(manager)
+            time.sleep(5)
+            
+    except KeyboardInterrupt: 
+        print("\n\nStopping...")
+    finally:
+        manager.stop_all()
+        print("✅ Cleanup complete")
